@@ -1,0 +1,119 @@
+version:2
+sources:
+  - name: tpch
+    database: snowflake_sample_data
+    schema: tpch_sf1
+    tables:
+      - name: customer
+        columns:
+          - name: c_custkey
+            tests:
+              - unique
+              - not_null
+          - name: c_name
+          - name: c_address
+          - name: c_nationkey
+          - name: c_phone
+          - name: c_acctbal
+          - name: c_mktsegment
+          - name: c_comment
+      - name: lineitem
+        columns:
+          - name: l_orderkey
+            tests:
+              - not_null
+              - unique
+              - relationships:
+                  to: source('tpch', 'orders')
+                  field: o_orderkey
+          - name: l_partkey
+          - name: l_suppkey
+          - name: l_linenumber
+          - name: l_quantity
+          - name: l_extendedprice
+          - name: l_discount
+          - name: l_tax
+          - name: l_returnflag
+          - name: l_linestatus
+          - name: l_shipdate
+          - name: l_commitdate
+          - name: l_receiptdate
+          - name: l_shipinstruct
+          - name: l_shipmode
+          - name: l_comment
+      - name: nation
+        columns:
+          - name: n_nationkey
+            tests:
+              - unique
+              - not_null
+          - name: n_name
+          - name: n_regionkey
+          - name: n_comment
+      - name: orders
+        columns:
+          - name: o_orderkey
+            tests:
+              - unique
+              - not_null
+          - name: o_custkey
+          - name: o_orderstatus
+          - name: o_totalprice
+          - name: o_orderdate
+          - name: o_orderpriority
+          - name: o_clerk
+          - name: o_shippriority
+          - name: o_comment
+      - name: part
+        columns:
+          - name: p_partkey
+            tests:
+              - unique
+              - not_null
+          - name: p_name
+          - name: p_mfgr
+          - name: p_brand
+          - name: p_type
+          - name: p_size
+          - name: p_container
+          - name: p_retailprice
+          - name: p_comment
+      - name: partsupp
+        columns:
+          - name: ps_partkey
+            tests:
+              - not_null
+              - unique
+              - relationships:
+                  to: source('tpch', 'part')
+                  field: p_partkey
+          - name: ps_suppkey
+            tests:
+              - not_null
+              - unique
+              - relationships:
+                  to: source('tpch', 'supplier')
+                  field: s_suppkey
+          - name: ps_availqty
+          - name: ps_supplycost
+          - name: ps_comment
+      - name: region
+        columns:
+          - name: r_regionkey
+            tests:
+              - unique
+              - not_null
+          - name: r_name
+          - name: r_comment
+      - name: supplier
+        columns:
+          - name: s_suppkey
+            tests:
+              - unique
+              - not_null
+          - name: s_name
+          - name: s_address
+          - name: s_nationkey
+          - name: s_phone
+          - name: s_acctbal
+          - name: s_comment
