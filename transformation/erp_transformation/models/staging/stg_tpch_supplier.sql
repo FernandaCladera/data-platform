@@ -1,0 +1,7 @@
+select
+    s_suppkey as supplier_key,
+    s_name as supplier_name,
+    s_nationkey as nation_key,
+    s_acctbal as supplier_account_balance,
+from 
+    {{ source ('tpch','supplier') }}
