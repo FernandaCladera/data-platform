@@ -1,12 +1,27 @@
+-- Administrative setup
+
 use role accountadmin;
-show grants on warehouse dev_wh;
-grant usage on warehouse dev_wh to role role_dev;
 
+-- role
+create role if not exists role_dev;
 
-GRANT USAGE ON DATABASE DB_ERP TO ROLE ROLE_DEV;
-GRANT USAGE ON SCHEMA DB_ERP.BRONZE TO ROLE ROLE_DEV;
-GRANT CREATE VIEW ON SCHEMA DB_ERP.BRONZE TO ROLE ROLE_DEV;
+-- compute access
+grant usage  on warehouse dev_wh to role role_dev;
 
-SHOW GRANTS TO ROLE role_dev;
+-- database access
+grant usage on database db_erp to role role_dev;
 
+-- schema access
+grant usage on schema db_erp.bronze to role role_dev;
+
+-- object/action permissions
+grant create view on schema db_erp.bronze to role role_dev;
+
+-- assign role to user
+grant role role_dev to user FCM;
+
+-- check
+show grants to role role_dev;
+
+-- start working
 use role role_dev;
