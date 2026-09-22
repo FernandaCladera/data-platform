@@ -6,12 +6,11 @@ BIGQUERY_SOURCE_PROJECT= "bigquery-public-data"
 BIGQUERY_DATASET= "thelook_ecommerce"
 
 BIGQUERY_TABLES = [
-    "users",
-    "orders",
+    "distribution_centers",
+    "inventory_items",
     "order_items",
     "products",
-    "inventory_items",
-    "distribution_centers",
+    "users"
 ]
 
 # Snowflake Configuration
@@ -23,3 +22,7 @@ SNOWFLAKE_USER = "FCM"
 SNOWFLAKE_BRONZE_SCHEMA = "BRONZE"
 SNOWFLAKE_SILVER_SCHEMA = "SILVER"
 SNOWFLAKE_GOLD_SCHEMA = "GOLD"
+
+
+# Others configs
+BATCH_SIZE = 5000
