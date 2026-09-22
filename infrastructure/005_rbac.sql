@@ -17,6 +17,7 @@ grant usage on schema db_erp.bronze to role role_dev;
 -- object/action permissions
 grant create table on schema db_erp.bronze to role role_dev;
 grant create view on schema db_erp.bronze to role role_dev;
+grant create schema on database db_erp to role role_dev;
 
 -- assign role to user
 grant role role_dev to user FCM;

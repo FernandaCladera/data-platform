@@ -1,0 +1,93 @@
+version: 2
+
+sources:
+  - name: bronze
+    database: DB_ERP
+    schema: BRONZE
+
+    tables:
+      - name: distribution_centers
+        description: "Distribution centers from the source system"
+        columns:
+          - name: id
+            description: "Primary key of the distribution center"
+          - name: name
+            description: "Distribution center name"
+          - name: latitude
+          - name: longitude
+          - name: distribution_center_geom
+
+      - name: inventory_items
+        description: "Individual inventory items"
+        columns:
+          - name: id
+            description: "Primary key of the inventory item"
+          - name: product_id
+            description: "Foreign key to products"
+          - name: created_at
+          - name: sold_at
+          - name: cost
+          - name: product_category
+          - name: product_name
+          - name: product_brand
+          - name: product_retail_price
+          - name: product_department
+          - name: product_sku
+          - name: product_distribution_center_id
+            description: "Foreign key to distribution centers"
+
+      - name: orders_items
+        identifier: ORDERS_ITEMS
+        description: "Individual items associated with orders"
+        columns:
+          - name: id
+            description: "Primary key of the order item"
+          - name: order_id
+          - name: user_id
+            description: "Foreign key to users"
+          - name: product_id
+            description: "Foreign key to products"
+          - name: inventory_item_id
+            description: "Foreign key to inventory items"
+          - name: status
+          - name: created_at
+          - name: shipped_at
+          - name: delivered_at
+          - name: returned_at
+          - name: sale_price
+
+      - name: products
+        description: "Product master data"
+        columns:
+          - name: id
+            description: "Primary key of the product"
+          - name: cost
+          - name: category
+          - name: name
+          - name: brand
+          - name: retail_price
+          - name: department
+          - name: sku
+          - name: distribution_center_id
+            description: "Foreign key to distribution centers"
+
+      - name: users
+        description: "Customer/user master data"
+        columns:
+          - name: id
+            description: "Primary key of the user"
+          - name: first_name
+          - name: last_name
+          - name: email
+          - name: age
+          - name: gender
+          - name: state
+          - name: street_address
+          - name: postal_code
+          - name: city
+          - name: country
+          - name: latitude
+          - name: longitude
+          - name: traffic_source
+          - name: created_at
+          - name: user_geom
