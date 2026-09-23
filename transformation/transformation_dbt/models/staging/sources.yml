@@ -37,11 +37,12 @@ sources:
           - name: product_department
           - name: product_sku
           - name: product_distribution_center_id
+            description: "Foreign key to distribution centers"
             tests:
               - relationships:
-                  to: source('bronze', 'distribution_centers')
-                  field: id
-            description: "Foreign key to distribution centers"
+                  arguments:
+                    to: source('bronze', 'distribution_centers')
+                    field: id
 
       - name: orders_items
         identifier: ORDERS_ITEMS
@@ -57,20 +58,23 @@ sources:
             description: "Foreign key to users"
             tests:
               - relationships:
-                  to: source('bronze', 'users')
-                  field: id
+                  arguments:
+                    to: source('bronze', 'users')
+                    field: id
           - name: product_id
             description: "Foreign key to products"
             tests:
               - relationships:
-                  to: source('bronze', 'products')
-                  field: id
+                  arguments:
+                    to: source('bronze', 'products')
+                    field: id
           - name: inventory_item_id
             description: "Foreign key to inventory items"
             tests:
-              - relationships:
-                  to: source('bronze', 'inventory_items')
-                  field: id
+              - relationships:            
+                  arguments:
+                    to: source('bronze', 'inventory_items')
+                    field: id
           - name: status
           - name: created_at
           - name: shipped_at

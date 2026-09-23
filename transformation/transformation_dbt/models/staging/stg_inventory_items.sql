@@ -1,4 +1,4 @@
-{{config(materialized='view', shema='silver')}}
+{{config(materialized='view', schema='silver')}}
 select
     id as inventory_item_id,
     product_id,

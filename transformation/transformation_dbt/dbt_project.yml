@@ -34,13 +34,13 @@ models:
     # Config indicated by + and applies to all files under models/example/
     staging:
       +materialized: view
-      snowflake_warehouse: dev_wh
-      schema: bronze
+      +snowflake_warehouse: dev_wh
+      +schema: SILVER
     marts:
       +materialized: table
-      snowflake_warehouse: dev_wh
-      schema: silver
+      +snowflake_warehouse: dev_wh
+      +schema: GOLD
     features:
       +materialized: table
-      snowflake_warehouse: dev_wh
-      schema: gold
+      +snowflake_warehouse: dev_wh
+      +schema: GOLD

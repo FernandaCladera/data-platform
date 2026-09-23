@@ -1,4 +1,4 @@
-{{config (materialized='view', shema='silver')}}
+{{config (materialized='view', schema='silver')}}
 select
     id as distribution_center_id,
     name as distribution_center_name,

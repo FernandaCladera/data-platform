@@ -6,4 +6,11 @@
 
 --select * from db_erp.bronze.ORDER_ITEMS limit 3;
 
-select * from db_erp.bronze.DISTRIBUTION_CENTERS
+--select distinct status from db_erp.bronze.ORDER_ITEMS
+
+--SELECT *
+--FROM DB_ERP.BRONZE_GOLD.DIM_PRODUCTS
+--WHERE product_name IS NULL;
+
+drop schema if exists db_erp.bronze_bronze cascade;
+--drop schema if exists db_erp.bronze_gold cascade;

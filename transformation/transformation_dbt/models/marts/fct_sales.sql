@@ -28,12 +28,9 @@ final as (
         oi.returned_at,
         oi.sale_price,
         p.cost,
-        oi.sale_price - p.cost as gross_profit,
-        p.product_name,
-        p.brand,
-        p.category,
-        p.department,
-        p.sku
+        {{calculate_gross_profit ('oi.sale_price', 'p.cost')}} as gross_profit,
+        {{calculate_gross_margin ('oi.sale_price', 'p.cost')}} as gross_margin
+
     from order_items oi
     left join products p on oi.product_id = p.product_id
 )

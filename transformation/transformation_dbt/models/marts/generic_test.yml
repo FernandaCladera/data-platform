@@ -1,0 +1,70 @@
+models:
+  - name: fct_sales
+    columns:
+      - name: sales_key
+        data_tests:
+          - not_null
+          - unique
+
+      - name: order_item_id
+        data_tests:
+          - not_null
+          - unique
+
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+
+      - name: user_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_users')
+                field: user_id
+
+      - name: sale_price
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
+
+      - name: cost
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
+
+      - name: order_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Complete', 'Shipped', 'Processing', 'Cancelled', 'Returned']
+
+
+  - name: dim_products
+    columns:
+      - name: product_id
+        data_tests:
+          - not_null
+          - unique
+
+      - name: product_name
+        data_tests:
+          - not_null
+
+
+  - name: dim_users
+    columns:
+      - name: user_id
+        data_tests:
+          - not_null
+          - unique

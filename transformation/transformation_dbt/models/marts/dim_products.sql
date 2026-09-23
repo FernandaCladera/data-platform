@@ -3,7 +3,7 @@
 
 select
     product_id,
-    product_name,
+    coalesce(product_name, 'Unknown') as product_name,
     brand,
     category,
     department,
