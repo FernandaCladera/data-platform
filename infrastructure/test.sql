@@ -4,4 +4,6 @@
 --TRUNCATE TABLE DB_ERP.BRONZE.PRODUCTS;
 --TRUNCATE TABLE DB_ERP.BRONZE.USERS;
 
-select * from db_erp.bronze.distribution_centers
+--select * from db_erp.bronze.ORDER_ITEMS limit 3;
+
+select * from db_erp.bronze.DISTRIBUTION_CENTERS

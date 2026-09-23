@@ -11,6 +11,9 @@ sources:
         columns:
           - name: id
             description: "Primary key of the distribution center"
+            tests:
+              - unique
+              - not_null
           - name: name
             description: "Distribution center name"
           - name: latitude
@@ -34,6 +37,10 @@ sources:
           - name: product_department
           - name: product_sku
           - name: product_distribution_center_id
+            tests:
+              - relationships:
+                  to: source('bronze', 'distribution_centers')
+                  field: id
             description: "Foreign key to distribution centers"
 
       - name: orders_items
@@ -42,13 +49,28 @@ sources:
         columns:
           - name: id
             description: "Primary key of the order item"
+            tests: 
+              - unique
+              - not_null
           - name: order_id
           - name: user_id
             description: "Foreign key to users"
+            tests:
+              - relationships:
+                  to: source('bronze', 'users')
+                  field: id
           - name: product_id
             description: "Foreign key to products"
+            tests:
+              - relationships:
+                  to: source('bronze', 'products')
+                  field: id
           - name: inventory_item_id
             description: "Foreign key to inventory items"
+            tests:
+              - relationships:
+                  to: source('bronze', 'inventory_items')
+                  field: id
           - name: status
           - name: created_at
           - name: shipped_at
@@ -61,6 +83,9 @@ sources:
         columns:
           - name: id
             description: "Primary key of the product"
+            tests:
+              - unique
+              - not_null
           - name: cost
           - name: category
           - name: name
@@ -76,6 +101,9 @@ sources:
         columns:
           - name: id
             description: "Primary key of the user"
+            tests:
+              - unique
+              - not_null
           - name: first_name
           - name: last_name
           - name: email
