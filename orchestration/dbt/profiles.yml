@@ -1,0 +1,14 @@
+transformation_dbt:
+  outputs:
+    dev:
+      account: NWCZSXF-HM78006
+      database: DB_ERP
+      role: ROLE_DEV
+      schema: BRONZE
+      threads: 1
+      type: snowflake
+      user: FCM
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      warehouse: DEV_WH
+
+  target: dev

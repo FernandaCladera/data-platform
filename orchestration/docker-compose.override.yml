@@ -1,0 +1,20 @@
+services:
+  scheduler:
+    volumes:
+      - ../transformation/transformation_dbt:/usr/local/airflow/dbt
+      - ./dbt/profiles.yml:/usr/local/airflow/.dbt/profiles.yml
+
+  api-server:
+    volumes:
+      - ../transformation/transformation_dbt:/usr/local/airflow/dbt
+      - ./dbt/profiles.yml:/usr/local/airflow/.dbt/profiles.yml
+
+  triggerer:
+    volumes:
+      - ../transformation/transformation_dbt:/usr/local/airflow/dbt
+      - ./dbt/profiles.yml:/usr/local/airflow/.dbt/profiles.yml
+
+  dag-processor:
+    volumes:
+      - ../transformation/transformation_dbt:/usr/local/airflow/dbt
+      - ./dbt/profiles.yml:/usr/local/airflow/.dbt/profiles.yml
