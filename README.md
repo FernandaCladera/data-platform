@@ -1,297 +1,227 @@
-# Data Platform Batch Processing
+Absolutely — here is the complete copy-paste-ready README.md:
 
-This project is an end-to-end **ELT data platform** that pulls the public `thelook_ecommerce` dataset from **Google BigQuery** and loads it into **Snowflake**. From there it models the data with **dbt** into a **Bronze → Silver → Gold** medallion architecture. **Apache Airflow** (Astronomer Runtime + Cosmos) orchestrates the whole cycle.
-
-![DAG complete cycle](documentation/DAG_complete_cycle.png)
-
+# Data Platform | BigQuery → Snowflake → dbt → Airflow
+An end-to-end batch data platform built to practice production-oriented **Data Engineering** patterns.
+The pipeline extracts the public `thelook_ecommerce` dataset from **Google BigQuery**, bulk-loads it into **Snowflake**, transforms it through a **Bronze → Silver → Gold** architecture with **dbt**, and orchestrates the complete workflow with **Apache Airflow + Cosmos**.
+![Airflow DAG](documentation/DAG_complete_cycle.png)
 ---
-
 ## Architecture
-
 ```mermaid
 flowchart LR
-    subgraph SRC["☁️ Source: Google BigQuery"]
-        BQ[("bigquery-public-data<br/>thelook_ecommerce<br/><br/>distribution_centers<br/>inventory_items<br/>order_items<br/>products<br/>users")]
-    end
-
-    subgraph ING["🐍 Python Ingestion"]
-        EX["extract.py<br/>SELECT * FROM table"]
-        LD["load.py<br/>DataFrame → Parquet<br/>PUT → TEMP STAGE<br/>COPY INTO temp table<br/>TRUNCATE + INSERT (txn)"]
-        EX --> LD
-    end
-
-    subgraph SF["❄️ Snowflake · DB_ERP"]
-        BR[("🥉 BRONZE<br/>raw tables")]
-        SI[("🥈 SILVER<br/>stg_* views")]
-        GO[("🥇 GOLD<br/>dim_* / fct_sales tables")]
-        BR --> SI --> GO
-    end
-
-    subgraph DBT["🔧 dbt"]
-        T["run + test<br/>(generic & singular tests)"]
-    end
-
-    BQ --> EX
-    LD --> BR
-    SI -.-> T
-    GO -.-> T
-
-    AF{{"🌀 Airflow DAG<br/>dataplatform_pipeline"}}
-    AF -. orchestrates .-> ING
-    AF -. orchestrates .-> DBT
+    BQ["Google BigQuery<br/>thelook_ecommerce"]
+    PY["Python Ingestion<br/>Parquet + COPY INTO"]
+    B["Snowflake<br/>BRONZE"]
+    S["dbt<br/>SILVER"]
+    G["dbt<br/>GOLD"]
+    BI["Analytics-ready<br/>Star Schema"]
+    BQ --> PY --> B --> S --> G --> BI
+    AF["Airflow + Cosmos"]
+    AF -. orchestrates .-> PY
+    AF -. orchestrates .-> S
+    AF -. orchestrates .-> G
 ```
-
-| Layer | Schema | Materialization | Built by |
-|---|---|---|---|
-| 🥉 **Bronze** | `DB_ERP.BRONZE` | Tables (raw copy of the source) | Python ingestion |
-| 🥈 **Silver** | `DB_ERP.SILVER` | Views (cleaned & renamed) | dbt `staging/` |
-| 🥇 **Gold** | `DB_ERP.GOLD` | Tables (dimensional model) | dbt `marts/` |
-
+### Data Layers
+| Layer | Purpose | Materialization |
+|---|---|---|
+| **Bronze** | Raw source-aligned data | Snowflake tables |
+| **Silver** | Cleaned and standardized models | dbt views |
+| **Gold** | Analytics-ready dimensional model | dbt tables |
 ---
-
+## Engineering Highlights
+### Idempotent Bulk Ingestion
+Each BigQuery table is processed as an independent Airflow task.
+Instead of row-by-row inserts, the ingestion follows a bulk-load pattern:
+```text
+BigQuery → Pandas → Parquet → Snowflake Stage → COPY INTO
+```
+Data is first loaded into a temporary table before replacing the target data, making pipeline reruns **idempotent** and preventing duplicate records.
+The same ingestion implementation is reused across all source tables.
+### Independent Orchestration
+Airflow generates one ingestion task per configured source table:
+```text
+ingest_distribution_centers
+ingest_inventory_items
+ingest_order_items
+ingest_products
+ingest_users
+```
+These tasks can execute independently and in parallel, with **2 retries** configured for transient failures.
+Only after ingestion completes successfully does the transformation layer begin.
+**Cosmos** translates the dbt dependency graph into native Airflow tasks, exposing individual models and tests directly in the DAG.
+### dbt Transformation & Data Quality
+The transformation layer follows a medallion architecture.
+**Silver** standardizes the raw source data through `stg_*` views.
+**Gold** exposes an analytics-ready dimensional model:
+- `fct_sales`
+- `dim_products`
+- `dim_users`
+- `dim_inventory_items`
+- `dim_distribution_centers`
+Data quality is enforced through dbt tests covering:
+- primary-key uniqueness and nullability
+- referential integrity
+- accepted values
+- numeric ranges
+- business rules such as non-negative gross profit
+### Infrastructure & Security
+Snowflake infrastructure is reproducible through versioned SQL scripts covering:
+```text
+Warehouse → Database → Schemas → Roles → RBAC → Tables
+```
+The project uses:
+- a dedicated `ROLE_DEV`
+- environment-based secrets
+- least-privilege Snowflake access
+- a dedicated dbt virtual environment inside the Airflow container
+- Docker for reproducible local execution
+---
 ## Tech Stack
-
 | Component | Technology |
 |---|---|
-| Source | Google BigQuery (`bigquery-public-data.thelook_ecommerce`) |
-| Ingestion | Python · `google-cloud-bigquery` · `pandas` · `pyarrow` (Parquet) · `snowflake-connector-python` |
-| Warehouse | Snowflake (x-small warehouse, RBAC) |
-| Transformation | dbt Core · `dbt-snowflake` · `dbt_utils` 1.1.1 |
-| Orchestration | Apache Airflow 3 on Astronomer Runtime 3.3 · `astronomer-cosmos` |
-| Runtime | Docker (Astro CLI) |
-
+| **Source** | Google BigQuery |
+| **Ingestion** | Python · Pandas · PyArrow |
+| **Warehouse** | Snowflake |
+| **Transformation** | dbt Core · dbt-utils |
+| **Orchestration** | Apache Airflow · Astronomer Cosmos |
+| **Runtime** | Docker · Astronomer Runtime |
 ---
-
-## 📁 Repository Structure
-
-```
+## Repository Structure
+```text
 data-platform/
-├── config/
-│   └── config.py                 # Central config: BigQuery source, Snowflake target, table list
-├── infrastructure/               # Snowflake setup scripts (run in order)
-│   ├── 001_create_warehouse.sql
-│   ├── 002_create_database.sql
-│   ├── 003_create_schemas.sql
-│   ├── 004_create_roles.sql
-│   ├── 005_rbac.sql
-│   ├── 006_create_tables.sql
-│   └── 999_destroy.sql           # Teardown
-├── ingestion/
-│   └── bigquery/
-│       ├── extract.py            # BigQuery extraction
-│       ├── load.py               # Snowflake bulk load
-│       └── run.py                # ingest_table() = extract + load
-├── transformation/
-│   └── transformation_dbt/       # dbt project
-│       ├── models/
-│       │   ├── staging/          # sources.yml + stg_* views  (SILVER)
-│       │   └── marts/            # dim_* + fct_sales tables   (GOLD) + generic tests
-│       ├── macros/               # generate_schema_name, profitability
-│       ├── tests/                # singular tests
-│       └── packages.yml          # dbt_utils
-├── orchestration/                # Astro / Airflow project
-│   ├── dags/dataplatform_pipeline.py
-│   ├── dbt/profiles.yml
-│   ├── Dockerfile
-│   ├── docker-compose.override.yml
-│   └── requirements.txt
-└── documentation/
-    └── DAG_complete_cycle.png
+├── config/             # Central pipeline configuration
+├── infrastructure/     # Snowflake provisioning & RBAC
+├── ingestion/          # BigQuery → Snowflake ingestion
+├── transformation/     # dbt staging, marts, tests & macros
+├── orchestration/      # Airflow / Cosmos
+└── documentation/      # Architecture & DAG assets
 ```
-
+The main responsibilities are deliberately separated:
+```text
+config/
+    Defines what the pipeline processes
+ingestion/
+    Defines how data moves from BigQuery → Snowflake
+transformation/
+    Defines how Bronze data becomes analytics-ready models
+orchestration/
+    Defines when and in what order workloads execute
+infrastructure/
+    Defines the Snowflake environment
+```
 ---
-
-## 🔄 The Pipeline, Step by Step
-
-### 1️⃣ Infrastructure: Snowflake setup
-
-The SQL scripts in [`infrastructure/`](infrastructure/) build the whole Snowflake environment. They are idempotent (`IF NOT EXISTS`):
-
-| Script | What it does |
-|---|---|
-| `001_create_warehouse.sql` | Creates `DEV_WH`: **x-small**, `auto_suspend = 60`, `auto_resume = true` (cost-efficient) |
-| `002_create_database.sql` | Creates database `DB_ERP` |
-| `003_create_schemas.sql` | Creates the medallion schemas `BRONZE`, `SILVER`, `GOLD` |
-| `004_create_roles.sql` | Creates the `ROLE_DEV` role |
-| `005_rbac.sql` | Grants least-privilege access: warehouse usage, database/schema usage, and `CREATE TABLE/VIEW` per schema, then assigns the role to the user |
-| `006_create_tables.sql` | Creates the 5 Bronze tables with typed columns (`TIMESTAMP_TZ`, `GEOGRAPHY`, …) |
-| `999_destroy.sql` | Drops database, warehouse and role (full teardown) |
-
-### 2️⃣ Ingestion: BigQuery ➜ Snowflake Bronze
-
-All sources and targets are defined in [`config/config.py`](config/config.py):
-
-```python
-BIGQUERY_SOURCE_PROJECT = "bigquery-public-data"
-BIGQUERY_DATASET        = "thelook_ecommerce"
-BIGQUERY_TABLES = ["distribution_centers", "inventory_items", "order_items", "products", "users"]
+## Pipeline Execution
+The complete DAG executes:
+```text
+BigQuery
+   │
+   ├── ingest_distribution_centers ─┐
+   ├── ingest_inventory_items ──────┤
+   ├── ingest_order_items ──────────┼──► dbt SILVER ──► dbt GOLD ──► tests
+   ├── ingest_products ─────────────┤
+   └── ingest_users ────────────────┘
 ```
-
-**Extract** ([`extract.py`](ingestion/bigquery/extract.py)) queries each table from BigQuery. It supports an optional `start_date` parameter for incremental extraction, passed safely as a query parameter.
-
-**Load** ([`load.py`](ingestion/bigquery/load.py)) is a bulk-load pattern built for speed and safety:
-
-1. Converts the BigQuery rows to a **pandas DataFrame**.
-2. Serializes geospatial objects to **WKT**.
-3. Writes the DataFrame to a local **Parquet** file.
-4. Creates a **temporary stage** and a **temporary table** (`LIKE` the target) and runs `PUT` to upload the file.
-5. Runs `COPY INTO` the temp table, casting `*_geom` columns with `TO_GEOGRAPHY(...)`.
-6. In a **single transaction**, runs `TRUNCATE` on the target and `INSERT … SELECT` from the temp table.
-7. On any error it runs `ROLLBACK`, so the Bronze table is never left half-loaded.
-
-**Run** ([`run.py`](ingestion/bigquery/run.py)): `ingest_table(table)` wraps extract + load in a single call. Airflow calls this function.
-
-### 3️⃣ Transformation: dbt (Silver & Gold)
-
-The dbt project is [`transformation/transformation_dbt`](transformation/transformation_dbt/).
-
-A custom **`generate_schema_name`** macro makes models land exactly in `SILVER` / `GOLD`, without dbt's default `<target>_<schema>` prefix.
-
-#### 🥈 Staging layer (`SILVER`, views)
-
-These views rename the source primary keys to explicit business keys and standardize column names.
-
-| Model | Source (Bronze) | Key change |
-|---|---|---|
-| `stg_distribution_centers` | `distribution_centers` | `id → distribution_center_id`, `name → distribution_center_name` |
-| `stg_inventory_items` | `inventory_items` | `id → inventory_item_id`, `product_distribution_center_id → distribution_center_id` |
-| `stg_orders_items` | `orders_items` | `id → order_item_id` |
-| `stg_products` | `products` | `id → product_id`, `name → product_name` |
-| `stg_users` | `users` | `id → user_id` |
-
-#### 🥇 Marts layer (`GOLD`, tables)
-
-These tables form a **star schema** ready for analytics:
-
-| Model | Type | Highlights |
-|---|---|---|
-| `fct_sales` | Fact | One row per order item. Surrogate key `sales_key` (`dbt_utils.generate_surrogate_key`), order lifecycle timestamps, `sale_price`, `cost`, **`gross_profit`**, **`gross_margin`** |
-| `dim_products` | Dimension | Product master. `product_name` falls back to `'Unknown'` |
-| `dim_users` | Dimension | Customer demographics, location and `traffic_source` |
-| `dim_inventory_items` | Dimension | Inventory with a derived **`inventory_status`** (`sold` / `available`) |
-| `dim_distribution_centers` | Dimension | Distribution centers with geography |
-
-The profitability logic is reusable through macros ([`macros/profitability.sql`](transformation/transformation_dbt/macros/profitability.sql)):
-
-```sql
-{% macro calculate_gross_profit(sale_price, cost) %} ({{ sale_price }} - {{ cost }}) {% endmacro %}
-{% macro calculate_gross_margin(sale_price, cost) %} ({{ sale_price }} - {{ cost }}) / {{ sale_price }} {% endmacro %}
-```
-
-#### 🧬 Model lineage
-
+The ingestion task list is driven by central configuration rather than duplicated inside the DAG.
+Each task calls the same reusable `ingest_table()` implementation while remaining independently observable and retryable in Airflow.
+Once all ingestion tasks succeed, Cosmos executes the dbt dependency graph.
+![Successful pipeline](documentation/DAG_complete_cycle.png)
+---
+## Data Model
+The Gold layer provides an analytics-ready dimensional model centered on sales.
 ```mermaid
 flowchart LR
-    s1[(bronze.distribution_centers)] --> stg1[stg_distribution_centers] --> d1[dim_distribution_centers]
-    s2[(bronze.inventory_items)] --> stg2[stg_inventory_items] --> d2[dim_inventory_items]
-    s3[(bronze.orders_items)] --> stg3[stg_orders_items] --> f[fct_sales]
-    s4[(bronze.products)] --> stg4[stg_products] --> d4[dim_products]
-    stg4 --> f
-    s5[(bronze.users)] --> stg5[stg_users] --> d5[dim_users]
+    DC[(distribution_centers)] --> SDC[stg_distribution_centers] --> DDC[dim_distribution_centers]
+    INV[(inventory_items)] --> SINV[stg_inventory_items] --> DINV[dim_inventory_items]
+    OI[(order_items)] --> SOI[stg_orders_items] --> F[fct_sales]
+    P[(products)] --> SP[stg_products] --> DP[dim_products]
+    SP --> F
+    U[(users)] --> SU[stg_users] --> DU[dim_users]
 ```
-
-### 4️⃣ Data Quality: dbt tests
-
-Tests run at **every layer**:
-
-| Level | Tests |
-|---|---|
-| **Sources** (`sources.yml`) | `unique` + `not_null` on primary keys. `relationships` between orders ↔ users/products/inventory and inventory ↔ distribution centers |
-| **Marts** (`generic_test.yml`) | `fct_sales`: `unique`/`not_null` on `sales_key` & `order_item_id`, referential integrity to `dim_products` & `dim_users`, `dbt_utils.accepted_range` (> 0) on `sale_price` & `cost`, and `accepted_values` on `order_status` (`Complete`, `Shipped`, `Processing`, `Cancelled`, `Returned`). `dim_products` / `dim_users`: unique, non-null keys |
-| **Singular** (`tests/`) | `assert_no_negative_gross_profit`: fails if any sale has `gross_profit < 0` |
-
-### 5️⃣ Orchestration: Airflow + Cosmos
-
-The DAG [`dataplatform_pipeline`](orchestration/dags/dataplatform_pipeline.py) ties everything together:
-
-```python
-ingestion_tasks = [
-    ingest.override(task_id=f"ingest_{table}")(table)
-    for table in BIGQUERY_TABLES
-]
-
-dbt_transformation = DbtTaskGroup(group_id="dbt_transformation", ...)
-
-ingestion_tasks >> dbt_transformation
+`fct_sales` contains order-item-level sales information including pricing, cost and profitability metrics.
+Reusable dbt macros calculate measures such as:
+```text
+gross_profit = sale_price - cost
+gross_margin = gross_profit / sale_price
 ```
-
-- **Dynamic ingestion tasks.** One `ingest_<table>` task is generated per table in `BIGQUERY_TABLES`, and they run in parallel.
-- **Cosmos `DbtTaskGroup`.** It renders the dbt project as native Airflow tasks: each staging model becomes a `DbtRunLocalOperator`, and each tested mart becomes a **run → test** sub-group.
-- **Resilience.** `retries = 2` with a `retry_delay` of 2 minutes. `catchup=False`. The DAG is triggered manually (`schedule=None`).
-- **Isolated dbt runtime.** The [`Dockerfile`](orchestration/Dockerfile) installs `dbt-snowflake` in a dedicated virtualenv (`/usr/local/airflow/dbt_venv`) to avoid dependency conflicts with Airflow.
-- **Mounted code.** [`docker-compose.override.yml`](orchestration/docker-compose.override.yml) mounts `ingestion/`, `config/`, the dbt project, `profiles.yml` and the GCP application-default credentials into the Airflow containers, so there is one source of truth for all code.
-
 ---
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- A Snowflake account with `ACCOUNTADMIN` access (for the initial setup)
-- A Google Cloud project with the BigQuery API enabled
-- [Docker](https://www.docker.com/) and the [Astro CLI](https://www.astronomer.io/docs/astro/cli/overview)
-- `gcloud` CLI
-
+## Data Quality
+Testing is integrated directly into the transformation workflow.
+### Source Tests
+Bronze source definitions validate:
+- primary keys
+- nullability
+- relationships between source entities
+### Model Tests
+Gold models validate:
+- unique and non-null keys
+- relationships between facts and dimensions
+- accepted order statuses
+- valid numeric ranges
+### Business Rule Tests
+Custom singular tests validate business-specific expectations such as:
+```text
+gross_profit >= 0
+```
+Because Cosmos exposes dbt tests as Airflow tasks, transformation and validation are visible in the same operational DAG.
+---
+## Run Locally
 ### 1. Provision Snowflake
-
-Run the scripts in [`infrastructure/`](infrastructure/) **in order** (`001` → `006`) in a Snowflake worksheet.
-
-### 2. Configure credentials
-
+Run the versioned SQL scripts under:
+```text
+infrastructure/
+```
+They create the warehouse, database, schemas, roles, permissions and Bronze tables.
+### 2. Authenticate GCP
+Create Google Application Default Credentials:
 ```bash
-# GCP: creates ~/.config/gcloud/application_default_credentials.json (mounted into Airflow)
 gcloud auth application-default login
 ```
-
-Create a `.env` file with your Snowflake password (it is git-ignored):
-
+The local credentials are mounted read-only into the Airflow environment.
+### 3. Configure Secrets
+Create the required `.env` file:
 ```env
 SNOWFLAKE_PASSWORD=<your_password>
 ```
-
-Update [`config/config.py`](config/config.py) with your GCP project and Snowflake account/user. Then update [`orchestration/dbt/profiles.yml`](orchestration/dbt/profiles.yml) for dbt:
-
-```yaml
-transformation_dbt:
-  outputs:
-    dev:
-      type: snowflake
-      account: <your_account>
-      user: <your_user>
-      password: <your_password>
-      role: ROLE_DEV
-      database: DB_ERP
-      warehouse: DEV_WH
-      schema: BRONZE
-      threads: 1
-  target: dev
-```
-
-### 3. Start Airflow
-
+Secrets are excluded from version control.
+Update `config/config.py` with the required GCP and Snowflake environment configuration.
+### 4. Start Airflow
 ```bash
 cd orchestration
 astro dev start
 ```
-
-Open the Airflow UI at http://localhost:8080 and **trigger `dataplatform_pipeline`**.
-
-### 4. Teardown
-
-Run [`infrastructure/999_destroy.sql`](infrastructure/999_destroy.sql) to drop the database, the warehouse and the role.
-
+Open the Airflow UI and trigger:
+```text
+dataplatform_pipeline
+```
+### 5. Teardown
+The infrastructure directory includes a teardown script for removing the development Snowflake resources when they are no longer required.
 ---
-
-## ✅ Final Result
-
-Here is a complete, successful run of the pipeline in the Airflow UI:
-
-![Airflow DAG: complete successful cycle](documentation/DAG_complete_cycle.png)
-
-What the graph shows:
-
-1. **5 ingestion tasks** (`ingest_users`, `ingest_distribution_centers`, `ingest_inventory_items`, `ingest_order_items`, `ingest_products`) load BigQuery data into Snowflake **Bronze** in parallel.
-2. When all of them succeed, the **`dbt_transformation`** task group starts:
-   - **Staging runs** (`stg_*_run`) build the **Silver** views.
-   - **Mart runs** build the **Gold** tables. The tested models (`dim_products`, `fct_sales`, `dim_users`) run as **run → test** sub-groups, so data quality is checked right after each model is built.
-3. Every task finishes in **`success`**. The data goes from the raw public dataset to an analytics-ready, tested star schema in one orchestrated run.
+## Design Scope
+This first version intentionally uses **batch processing and full-refresh ingestion**.
+The goal was not to maximize the number of technologies in the stack, but to build a reliable end-to-end foundation covering:
+- bulk data ingestion
+- idempotent reruns
+- independent task execution
+- orchestration and retries
+- warehouse modeling
+- data quality
+- RBAC
+- reproducible infrastructure
+For larger datasets or stricter freshness requirements, natural next steps would include **incremental loading, watermarking / MERGE strategies, and CDC**.
+---
+## Result
+The final pipeline successfully executes the complete path:
+```text
+Google BigQuery
+      ↓
+Python Bulk Ingestion
+      ↓
+Snowflake BRONZE
+      ↓
+dbt SILVER
+      ↓
+dbt GOLD
+      ↓
+Data Quality Tests
+```
+All stages are orchestrated and observable through a single Airflow DAG.
+![Airflow DAG: Complete Successful Cycle](documentation/DAG_complete_cycle.png)
