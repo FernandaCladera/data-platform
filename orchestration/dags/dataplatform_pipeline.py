@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from airflow.sdk import DAG, task
 from cosmos import DbtTaskGroup, ProjectConfig, ProfileConfig, ExecutionConfig
@@ -16,6 +16,10 @@ with DAG(
     start_date=datetime(2026, 1, 1),
     schedule=None,
     catchup=False,
+    default_args={
+        "retries":2,
+        "retry_delay":timedelta(minutes=2),
+    },
 ) as dag:
 
     @task
