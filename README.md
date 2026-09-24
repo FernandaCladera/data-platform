@@ -1,7 +1,8 @@
-# Data Platform | BigQuery → Snowflake → dbt → Airflow
+# Data Platform:
 
 This project is an end-to-end batch data platform built to practice production-oriented **Data Engineering** patterns.
 The pipeline extracts the public `thelook_ecommerce` dataset from **Google BigQuery**, bulk-loads it into **Snowflake**, transforms it through a **Bronze → Silver → Gold** architecture with **dbt**, and orchestrates the complete workflow with **Apache Airflow + Cosmos**.
+
 ![Airflow DAG](documentation/DAG_complete_cycle.png)
 ---
 ## 1. Architecture
@@ -19,23 +20,30 @@ flowchart LR
     AF -. orchestrates .-> S
     AF -. orchestrates .-> G
 ```
-### 1.1. Data Layers
-| Layer | Purpose | Materialization |
-|---|---|---|
-| **Bronze** | Raw source-aligned data | Snowflake tables |
-| **Silver** | Cleaned and standardized models | dbt views |
-| **Gold** | Analytics-ready dimensional model | dbt tables |
----
-## 2. Engineering Highlights
 
-### 2.1. Bulk Ingestion
+---
+## 2. Tech Stack
+| Component | Technology |
+|---|---|
+| **Source** | Google BigQuery |
+| **Ingestion** | Python · Pandas · PyArrow |
+| **Warehouse** | Snowflake |
+| **Transformation** | dbt Core · dbt-utils |
+| **Orchestration** | Apache Airflow · Astronomer Cosmos |
+| **Runtime** | Docker · Astronomer Runtime |
+
+
+---
+## 3. Engineering Highlights
+
+### 3.1. Bulk Ingestion
 Instead of row-by-row inserts, the ingestion follows a bulk-load pattern:
 ```text
 BigQuery → Pandas → Parquet → Snowflake Stage → COPY INTO
 ```
 Data is first loaded into a temporary table before replacing the target data, making pipeline reruns **idempotent** and controlling duplicate records.
 
-### 2.2. Independent Orchestration
+### 3.2. Independent Orchestration
 Airflow generates one ingestion task per configured source table:
 ```text
 ingest_distribution_centers
@@ -47,29 +55,20 @@ ingest_users
 These tasks can execute independently and in parallel, with **2 retries** configured for transient failures.
 Only after ingestion completes successfully does the transformation layer begin.
 
-### 2.3. dbt Transformation & Data Quality
+### 3.3. dbt Transformation & Data Quality
 
 The transformation layer follows a medallion architecture.
 **Silver** standardizes the raw source data through `stg_*` views and  **Gold** exposes an analytics-ready dimensional model.
 
 Data quality is enforced through dbt tests covering: Primary-key uniqueness and not-null, referential integrity, accepted values, numeric ranges and business rules (eg. non-negative gross profit)
 
-### 2.4. Infrastructure & Security
+### 3.4. Infrastructure & Security
 Snowflake infrastructure is reproducible through versioned SQL scripts covering:
 ```text
 Warehouse → Database → Schemas → Roles → RBAC → Tables
 ```
 
----
-## 3. Tech Stack
-| Component | Technology |
-|---|---|
-| **Source** | Google BigQuery |
-| **Ingestion** | Python · Pandas · PyArrow |
-| **Warehouse** | Snowflake |
-| **Transformation** | dbt Core · dbt-utils |
-| **Orchestration** | Apache Airflow · Astronomer Cosmos |
-| **Runtime** | Docker · Astronomer Runtime |
+
 ---
 ## 4. Repository Structure
 ```text
@@ -84,6 +83,17 @@ data-platform/
 
 ---
 ## 5. Data Model
+
+
+### 5.1. Data Layers
+| Layer | Purpose | Materialization |
+|---|---|---|
+| **Bronze** | Raw source-aligned data | Snowflake tables |
+| **Silver** | Cleaned and standardized models | dbt views |
+| **Gold** | Analytics-ready dimensional model | dbt tables |
+
+
+
 The Gold layer provides an analytics-ready dimensional model centered on sales.
 ```mermaid
 flowchart LR
@@ -99,6 +109,8 @@ flowchart LR
 ---
 
 ## 6. Run Locally
+
+Install all the requirements.
 
 ### 6.1. Provision Snowflake
 
