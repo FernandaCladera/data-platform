@@ -31,7 +31,6 @@ def load_table(rows, table_name):
         [dict(row.items()) for row in rows]
     )
 
-    # Convert special BigQuery objects to strings
     for column in dataframe.columns:
         if dataframe[column].dtype == "object":
             dataframe[column] = dataframe[column].apply(
@@ -42,23 +41,26 @@ def load_table(rows, table_name):
 
     connection = get_snowflake_connection()
     cursor = connection.cursor()
+
     stage_name = f"{table_name}_stage"
+    temp_table = f"{table_name}_new"
 
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
-            parquet_path = os.path.join(
-                temp_dir,
-                f"{table_name}.parquet",
-            )
+            parquet_path = os.path.join(temp_dir, f"{table_name}.parquet")
 
-            dataframe.to_parquet(
-                parquet_path,
-                index=False,
+            dataframe.to_parquet(parquet_path, index=False)
+
+            cursor.execute(
+                f"""
+                CREATE OR REPLACE TEMP TABLE {temp_table}
+                LIKE {table_name}
+                """
             )
 
             cursor.execute(
                 f"""
-                CREATE TEMP STAGE {stage_name}
+                CREATE OR REPLACE TEMP STAGE {stage_name}
                 FILE_FORMAT = (TYPE = PARQUET)
                 """
             )
@@ -81,8 +83,8 @@ def load_table(rows, table_name):
 
             select_columns = ", ".join(
                 (
-                    f"TO_GEOGRAPHY($1:\"{column}\"::STRING)"
-                    if column.endswith ("_geom")
+                    f'TO_GEOGRAPHY($1:"{column}"::STRING)'
+                    if column.endswith("_geom")
                     else f'$1:"{column}"'
                 )
                 for column in columns
@@ -90,7 +92,7 @@ def load_table(rows, table_name):
 
             cursor.execute(
                 f"""
-                COPY INTO {table_name} ({target_columns})
+                COPY INTO {temp_table} ({target_columns})
                 FROM (
                     SELECT {select_columns}
                     FROM @{stage_name}
@@ -100,7 +102,22 @@ def load_table(rows, table_name):
                 """
             )
 
-            connection.commit()
+            cursor.execute("BEGIN")
+
+            cursor.execute(f"TRUNCATE TABLE {table_name}")
+
+            cursor.execute(
+                f"""
+                INSERT INTO {table_name}
+                SELECT * FROM {temp_table}
+                """
+            )
+
+            cursor.execute("COMMIT")
+
+    except Exception:
+        cursor.execute("ROLLBACK")
+        raise
 
     finally:
         cursor.close()

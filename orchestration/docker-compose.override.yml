@@ -2,19 +2,28 @@ services:
   scheduler:
     volumes:
       - ../transformation/transformation_dbt:/usr/local/airflow/dbt
+      - ../ingestion:/usr/local/airflow/ingestion
+      - ../config:/usr/local/airflow/config
       - ./dbt/profiles.yml:/usr/local/airflow/.dbt/profiles.yml
+      - ~/.config/gcloud/application_default_credentials.json:/home/astro/.config/gcloud/application_default_credentials.json:ro
 
   api-server:
     volumes:
       - ../transformation/transformation_dbt:/usr/local/airflow/dbt
+      - ../ingestion:/usr/local/airflow/ingestion
+      - ../config:/usr/local/airflow/config
       - ./dbt/profiles.yml:/usr/local/airflow/.dbt/profiles.yml
 
   triggerer:
     volumes:
       - ../transformation/transformation_dbt:/usr/local/airflow/dbt
+      - ../ingestion:/usr/local/airflow/ingestion
+      - ../config:/usr/local/airflow/config
       - ./dbt/profiles.yml:/usr/local/airflow/.dbt/profiles.yml
 
   dag-processor:
     volumes:
       - ../transformation/transformation_dbt:/usr/local/airflow/dbt
+      - ../ingestion:/usr/local/airflow/ingestion
+      - ../config:/usr/local/airflow/config
       - ./dbt/profiles.yml:/usr/local/airflow/.dbt/profiles.yml
